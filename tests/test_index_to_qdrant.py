@@ -60,3 +60,8 @@ def test_index_all_filings_upserts_expected_point_count(tmp_path, monkeypatch, q
 
     count = qdrant_client.count("test_collection").count
     assert count == 2
+
+    points = qdrant_client.retrieve("test_collection", ids=[0], with_vectors=True)
+    assert len(points) == 1
+    assert "dense" in points[0].vector
+    assert "sparse" in points[0].vector

@@ -13,7 +13,7 @@ RAW_DIR = Path("data/raw")
 CHUNKS_DIR = Path("data/chunks")
 
 ITEM_HEADER_RE = re.compile(
-    r"(Item\s+\d+[A-Z]?\.?\s+[A-Za-z][^\n]{0,80})", re.IGNORECASE
+    r"^(Item\s+\d+[A-Z]?\.?\s+[A-Za-z][^\n]{0,80})", re.IGNORECASE | re.MULTILINE
 )
 
 _encoding = tiktoken.get_encoding("cl100k_base")
@@ -25,6 +25,8 @@ def _token_length(text: str) -> int:
 
 def html_to_text(html: str) -> str:
     soup = BeautifulSoup(html, "html.parser")
+    for tag in soup(["script", "style"]):
+        tag.decompose()
     return soup.get_text(separator="\n")
 
 

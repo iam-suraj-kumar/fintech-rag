@@ -1,4 +1,3 @@
-import json
 from unittest.mock import patch, Mock
 
 SUBMISSIONS_FIXTURE = {
@@ -47,3 +46,4 @@ def test_fetch_all_filings_skips_existing_cache(tmp_path, monkeypatch):
 
     assert cached.read_text() == "cached content"
     assert mock_fetch.call_count == len(mod.COMPANIES) - 1
+    assert mock_time.sleep.call_count == len(mod.COMPANIES) - 1

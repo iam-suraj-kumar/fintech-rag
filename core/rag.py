@@ -1,22 +1,10 @@
-import os
 import re
 
-import anthropic
-
+from core.llm import complete
 from core.models import Citation, RAGAnswer, RetrievedChunk
 from core.retrieval import hybrid_search
 
-MODEL = "claude-sonnet-5"
 NOT_FOUND_MESSAGE = "I couldn't find information about this in the available filings."
-
-_client: anthropic.Anthropic | None = None
-
-
-def get_anthropic_client() -> anthropic.Anthropic:
-    global _client
-    if _client is None:
-        _client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    return _client
 
 
 def _build_prompt(question: str, chunks: list[RetrievedChunk]) -> str:
@@ -75,12 +63,7 @@ def answer_question(question: str) -> RAGAnswer:
         return RAGAnswer(question=question, answer=NOT_FOUND_MESSAGE, citations=[])
 
     prompt = _build_prompt(question, chunks)
-    response = get_anthropic_client().messages.create(
-        model=MODEL,
-        max_tokens=1024,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    raw_text = response.content[0].text
+    raw_text = complete(prompt)
     answer_text, citations = _parse_response(raw_text, chunks)
 
     if not citations:

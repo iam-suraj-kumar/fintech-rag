@@ -1,18 +1,12 @@
 from qdrant_client import models
 
-from core.clients import (
-    COLLECTION_NAME,
-    DENSE_MODEL,
-    get_qdrant_client,
-    get_sparse_model,
-    get_voyage_client,
-)
+from core.clients import COLLECTION_NAME, get_qdrant_client, get_sparse_model
+from core.embeddings import embed_dense
 from core.models import RetrievedChunk
 
 
 def embed_query_dense(query: str) -> list[float]:
-    result = get_voyage_client().embed([query], model=DENSE_MODEL, input_type="query")
-    return result.embeddings[0]
+    return embed_dense([query], input_type="query")[0]
 
 
 def embed_query_sparse(query: str) -> models.SparseVector:

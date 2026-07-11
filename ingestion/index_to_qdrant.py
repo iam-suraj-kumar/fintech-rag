@@ -3,13 +3,8 @@ from pathlib import Path
 
 from qdrant_client import models
 
-from core.clients import (
-    COLLECTION_NAME,
-    DENSE_MODEL,
-    get_qdrant_client,
-    get_sparse_model,
-    get_voyage_client,
-)
+from core.clients import COLLECTION_NAME, get_qdrant_client, get_sparse_model
+from core.embeddings import embed_dense as _embed_dense
 from core.models import FilingChunk
 from ingestion.fetch_filings import COMPANIES
 
@@ -33,8 +28,7 @@ def ensure_collection() -> None:
 
 
 def embed_dense(texts: list[str]) -> list[list[float]]:
-    result = get_voyage_client().embed(texts, model=DENSE_MODEL, input_type="document")
-    return result.embeddings
+    return _embed_dense(texts, input_type="document")
 
 
 def load_chunks(ticker: str) -> list[FilingChunk]:

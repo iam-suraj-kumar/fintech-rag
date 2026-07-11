@@ -14,7 +14,7 @@ FIXTURE_CHUNKS = [
     {
         "ticker": "AAPL", "company_name": "Apple Inc.", "filing_type": "10-K",
         "section": "Item 7", "fiscal_year": "2024",
-        "text": "Apple's net interest margin discussion is not applicable as Apple is not a bank.",
+        "text": "Apple does not report metrics used by banks to assess deposit and loan spreads.",
     },
     {
         "ticker": "JPM", "company_name": "JPMorgan Chase & Co.", "filing_type": "10-K",

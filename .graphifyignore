@@ -1,0 +1,27 @@
+# .graphifyignore
+# Block non-Python assets and build targets
+*.md
+*.pdf
+*.txt
+*.png
+*.jpg
+*.json
+*.yaml
+*.yml
+
+# Python build/env artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
+.venv/
+venv/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+graphify-out/

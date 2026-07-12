@@ -1,6 +1,6 @@
 import streamlit as st
 
-from ui.tabs import architecture, pipeline_comparison, qa
+from ui.tabs import architecture, evaluation, pipeline_comparison, qa
 
 CUSTOM_CSS = """
 <style>
@@ -51,11 +51,15 @@ def main() -> None:
     )
     render_sidebar()
 
-    tab_qa, tab_compare, tab_arch = st.tabs(["Q&A", "Pipeline Comparison", "Architecture"])
+    tab_qa, tab_compare, tab_eval, tab_arch = st.tabs(
+        ["Q&A", "Pipeline Comparison", "Evaluation", "Architecture"]
+    )
     with tab_qa:
         qa.render()
     with tab_compare:
         pipeline_comparison.render()
+    with tab_eval:
+        evaluation.render()
     with tab_arch:
         architecture.render()
 

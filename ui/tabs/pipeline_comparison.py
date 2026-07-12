@@ -6,6 +6,7 @@ import streamlit as st
 
 from core.rag import answer_question
 from ingestion.chunk_filings import _token_length
+from ui.markdown_table import render_table
 from ui.tabs.qa import SAMPLE_QUESTIONS
 
 PIPELINES = {
@@ -154,7 +155,7 @@ def render_compare_all() -> None:
                     }
                 )
                 progress.progress((i + 1) / len(combos))
-            st.dataframe(rows, width="stretch")
+            render_table(rows)
 
 
 def render() -> None:

@@ -1,6 +1,6 @@
 import re
 
-from core.llm import complete
+from core.llm import complete_with_usage
 from core.models import Citation, RAGAnswer, RetrievedChunk
 from core.retrieval import hybrid_search
 from core.retrieval_strategies import STRATEGIES
@@ -74,10 +74,24 @@ def answer_question(
         return RAGAnswer(question=question, answer=NOT_FOUND_MESSAGE, citations=[])
 
     prompt = _build_prompt(question, chunks)
-    raw_text = complete(prompt)
-    answer_text, citations = _parse_response(raw_text, chunks)
+    llm_response = complete_with_usage(prompt)
+    answer_text, citations = _parse_response(llm_response.text, chunks)
 
     if not citations:
-        return RAGAnswer(question=question, answer=NOT_FOUND_MESSAGE, citations=[])
+        return RAGAnswer(
+            question=question,
+            answer=NOT_FOUND_MESSAGE,
+            citations=[],
+            input_tokens=llm_response.input_tokens,
+            output_tokens=llm_response.output_tokens,
+            cost_usd=llm_response.cost_usd,
+        )
 
-    return RAGAnswer(question=question, answer=answer_text, citations=citations)
+    return RAGAnswer(
+        question=question,
+        answer=answer_text,
+        citations=citations,
+        input_tokens=llm_response.input_tokens,
+        output_tokens=llm_response.output_tokens,
+        cost_usd=llm_response.cost_usd,
+    )

@@ -1,5 +1,7 @@
 import streamlit as st
 
+from ui.markdown_table import render_table
+
 FLOW_DIAGRAM = """
 digraph {
     rankdir=LR;
@@ -107,16 +109,102 @@ FILE_MAP = [
     ("core/__init__.py", "Loads .env on import so API keys are available everywhere."),
     ("core/models.py", "Shared dataclasses: FilingChunk, RetrievedChunk, Citation, RAGAnswer."),
     ("core/embeddings.py", "Dense embedding calls (OpenAI text-embedding-3-small)."),
-    ("core/llm.py", "LLM completion calls (OpenAI gpt-4o)."),
+    ("core/llm.py", "LLM completion calls (OpenAI gpt-4o), token/cost tracking, retries."),
+    ("core/retry.py", "Shared exponential-backoff retry wrapper for OpenAI calls."),
     ("core/retrieval.py", "hybrid_search() -- dense + sparse fusion (RRF) over Qdrant."),
     ("core/retrieval_strategies.py", "Five retrieval strategies built on hybrid_search()."),
     ("core/rag.py", "answer_question() -- the single public entrypoint: retrieve, prompt, cite."),
+    ("eval/golden_dataset.py", "Curated question set with expected sections/reference answers."),
+    ("eval/retrieval_metrics.py", "Deterministic hit rate / recall@k / MRR against expected chunks."),
+    ("eval/judge.py", "LLM-as-judge faithfulness and correctness scoring."),
+    ("eval/run_eval.py", "CLI: runs the golden set against a chosen pipeline/strategy."),
     ("ingestion/fetch_filing_pdf.py", "Downloads and caches the source PDF."),
     ("ingestion/fetch_filings.py", "Company/ticker/CIK metadata shared across ingestion."),
     ("ingestion/chunk_filings_basic.py", "PyPDFLoader + regex + recursive splitter chunking."),
     ("ingestion/chunk_filings_advanced.py", "docling HybridChunker, table-aware chunking."),
     ("ingestion/index_to_qdrant.py", "Embeds and upserts chunks into a Qdrant collection."),
     ("ingestion/index_comparison_collections.py", "Runs both pipelines into their own collections."),
+]
+
+PRODUCTION_CONSIDERATIONS = [
+    {
+        "title": "Cost, latency & token tracking",
+        "status": "Implemented",
+        "detail": (
+            "`core/llm.py: complete_with_usage()` returns an `LLMResponse` with input/output "
+            "token counts and an estimated USD cost per call. `RAGAnswer` carries these through "
+            "so the Evaluation tab can show cost-per-strategy, not just latency."
+        ),
+    },
+    {
+        "title": "Retry / backoff on API calls",
+        "status": "Implemented",
+        "detail": (
+            "`core/retry.py: with_retry()` wraps the OpenAI chat-completion and embedding calls "
+            "with exponential backoff on transient errors (connection, rate limit, timeout, "
+            "5xx) -- previously a single flaky API call would kill an entire eval run or demo "
+            "question."
+        ),
+    },
+    {
+        "title": "Observability & monitoring",
+        "status": "Documented (not built)",
+        "detail": (
+            "No structured tracing (e.g. OpenTelemetry/LangSmith spans per retrieve/generate "
+            "step), no dashboards on error rate, latency, or refusal rate. Today's only signal "
+            "is stdout or the Streamlit UI itself."
+        ),
+    },
+    {
+        "title": "Guardrails / prompt-injection defense",
+        "status": "Documented (not built)",
+        "detail": (
+            "`core/rag.py: _build_prompt()` embeds raw retrieved filing text verbatim into the "
+            "prompt with no sanitization. An adversarially-crafted excerpt in the corpus could "
+            "carry instructions the model follows."
+        ),
+    },
+    {
+        "title": "Secrets management & Qdrant auth",
+        "status": "Documented (not built)",
+        "detail": (
+            "API keys via `.env` are fine for a demo but not for shared deployment. "
+            "`core/clients.py: get_qdrant_client()` talks to `QDRANT_URL` with no API key and "
+            "no TLS enforcement."
+        ),
+    },
+    {
+        "title": "Rate limiting & cost controls",
+        "status": "Documented (not built)",
+        "detail": (
+            "Nothing throttles concurrent `answer_question()` calls against a shared, paid "
+            "OpenAI account -- a burst of traffic on a public demo instance has no ceiling."
+        ),
+    },
+    {
+        "title": "CI-gated eval regression thresholds",
+        "status": "Documented (not built)",
+        "detail": (
+            "`eval/run_eval.py` reports hit rate, MRR, and judge scores but nothing fails a "
+            "build if they regress. Wiring a minimum-score gate into CI is the natural next step."
+        ),
+    },
+    {
+        "title": "Data freshness & re-ingestion cadence",
+        "status": "Documented (not built)",
+        "detail": (
+            "The corpus is a single, hand-fetched filing with no scheduled re-fetch from SEC "
+            "EDGAR and no versioning of which filing vintage produced a given answer."
+        ),
+    },
+    {
+        "title": "Semantic caching",
+        "status": "Documented (not built)",
+        "detail": (
+            "Repeated or near-duplicate questions re-pay full retrieval + generation cost. "
+            "`st.cache_data` only caches within one running process, not across users/restarts."
+        ),
+    },
 ]
 
 
@@ -135,8 +223,14 @@ def render() -> None:
 
     st.divider()
     st.subheader("File map")
-    st.dataframe(
-        [{"File": f, "Responsibility": r} for f, r in FILE_MAP],
-        width="stretch",
-        hide_index=True,
+    render_table([{"File": f, "Responsibility": r} for f, r in FILE_MAP])
+
+    st.divider()
+    st.subheader("Production considerations")
+    st.caption(
+        "What this demo skips versus a real deployment. Two items are actually implemented; "
+        "the rest are documented gaps, not built."
     )
+    for item in PRODUCTION_CONSIDERATIONS:
+        with st.expander(f"{item['title']} -- {item['status']}"):
+            st.markdown(item["detail"])

@@ -5,10 +5,6 @@ from core.rag import answer_question
 
 COMPANIES = [
     "Apple (AAPL)",
-    "JPMorgan Chase (JPM)",
-    "Visa (V)",
-    "Bank of America (BAC)",
-    "Wells Fargo (WFC)",
 ]
 
 

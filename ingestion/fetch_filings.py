@@ -8,10 +8,6 @@ USER_AGENT = "FinTech RAG Demo contact@example.com"
 
 COMPANIES = {
     "AAPL": {"cik": "0000320193", "name": "Apple Inc."},
-    "JPM": {"cik": "0000019617", "name": "JPMorgan Chase & Co."},
-    "V": {"cik": "0001403161", "name": "Visa Inc."},
-    "BAC": {"cik": "0000070858", "name": "Bank of America Corporation"},
-    "WFC": {"cik": "0000072971", "name": "Wells Fargo & Company"},
 }
 
 

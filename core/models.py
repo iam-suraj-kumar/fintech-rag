@@ -10,11 +10,13 @@ class FilingChunk:
     section: str
     fiscal_year: str
     text: str
+    pipeline: str = "html_regex"
 
 
 @dataclass
 class RetrievedChunk:
     """A chunk returned from hybrid search, with its fused relevance score."""
+    id: int
     ticker: str
     company_name: str
     filing_type: str

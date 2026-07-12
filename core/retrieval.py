@@ -16,13 +16,16 @@ def embed_query_sparse(query: str) -> models.SparseVector:
     )
 
 
-def hybrid_search(query: str, top_k: int = 8) -> list[RetrievedChunk]:
-    """Run hybrid (dense + sparse) search over the sec_filings collection, fused via RRF."""
+def hybrid_search(
+    query: str, top_k: int = 8, collection_name: str | None = None
+) -> list[RetrievedChunk]:
+    """Run hybrid (dense + sparse) search over the given collection, fused via RRF."""
+    collection_name = collection_name or COLLECTION_NAME
     dense_vector = embed_query_dense(query)
     sparse_vector = embed_query_sparse(query)
 
     results = get_qdrant_client().query_points(
-        collection_name=COLLECTION_NAME,
+        collection_name=collection_name,
         prefetch=[
             models.Prefetch(query=dense_vector, using="dense", limit=top_k * 2),
             models.Prefetch(query=sparse_vector, using="sparse", limit=top_k * 2),
@@ -33,6 +36,7 @@ def hybrid_search(query: str, top_k: int = 8) -> list[RetrievedChunk]:
 
     return [
         RetrievedChunk(
+            id=point.id,
             ticker=point.payload["ticker"],
             company_name=point.payload["company_name"],
             filing_type=point.payload["filing_type"],

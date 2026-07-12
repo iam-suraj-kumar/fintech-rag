@@ -3,6 +3,7 @@ import re
 from core.llm import complete
 from core.models import Citation, RAGAnswer, RetrievedChunk
 from core.retrieval import hybrid_search
+from core.retrieval_strategies import STRATEGIES
 
 NOT_FOUND_MESSAGE = "I couldn't find information about this in the available filings."
 
@@ -55,9 +56,19 @@ def _parse_response(
     return answer_text, citations
 
 
-def answer_question(question: str) -> RAGAnswer:
-    """Retrieve relevant filing chunks via hybrid search and generate a grounded, cited answer."""
-    chunks = hybrid_search(question, top_k=8)
+def answer_question(
+    question: str, collection_name: str | None = None, strategy: str = "baseline"
+) -> RAGAnswer:
+    """Retrieve relevant filing chunks and generate a grounded, cited answer.
+
+    strategy selects a retrieval approach from core.retrieval_strategies.STRATEGIES
+    (query rewriting, HyDE, multi-query fusion, re-ranking); "baseline" calls
+    hybrid_search directly.
+    """
+    if strategy == "baseline":
+        chunks = hybrid_search(question, top_k=8, collection_name=collection_name)
+    else:
+        chunks = STRATEGIES[strategy](question, collection_name=collection_name, top_k=8)
 
     if not chunks:
         return RAGAnswer(question=question, answer=NOT_FOUND_MESSAGE, citations=[])

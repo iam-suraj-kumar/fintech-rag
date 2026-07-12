@@ -44,7 +44,7 @@ def test_index_all_filings_upserts_expected_point_count(tmp_path, monkeypatch, q
     ]
     (tmp_path / "AAPL.json").write_text(json.dumps(chunk_data))
 
-    fake_dense = [[0.1] * 1024, [0.2] * 1024]
+    fake_dense = [[0.1] * 1536, [0.2] * 1536]
 
     fake_sparse_embedding = MagicMock()
     fake_sparse_embedding.indices.tolist.return_value = [1, 2, 3]

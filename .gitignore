@@ -7,3 +7,4 @@ data/
 graphify-out/
 .claude/.headroom_wrap_marker.json
 CLAUDE.local.md
+.pytest_cache/

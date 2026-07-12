@@ -16,6 +16,7 @@ def test_filing_chunk_holds_expected_fields():
 
 def test_retrieved_chunk_holds_score():
     chunk = RetrievedChunk(
+        id=1,
         ticker="JPM",
         company_name="JPMorgan Chase & Co.",
         filing_type="10-K",

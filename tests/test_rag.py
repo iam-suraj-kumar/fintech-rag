@@ -6,6 +6,7 @@ import core.rag as mod
 
 def _make_chunk(ticker="JPM", text="Net interest margin was 2.7%.", section="Item 7", score=0.02):
     return RetrievedChunk(
+        id=0,
         ticker=ticker,
         company_name="JPMorgan Chase & Co.",
         filing_type="10-K",

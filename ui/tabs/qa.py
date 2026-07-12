@@ -42,7 +42,7 @@ def render() -> None:
     st.caption("Try a sample question:")
     cols = st.columns(len(SAMPLE_QUESTIONS))
     for col, (label, sample) in zip(cols, SAMPLE_QUESTIONS):
-        if col.button(label, help=sample, use_container_width=True):
+        if col.button(label, help=sample, width="stretch"):
             st.session_state["qa_question"] = sample
 
     question = st.text_input("Ask a question about these filings", key="qa_question")

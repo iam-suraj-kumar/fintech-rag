@@ -104,7 +104,7 @@ def render_sample_chunk_viewer() -> None:
 def render_sample_question_chips(target_key: str, key_prefix: str) -> None:
     cols = st.columns(len(SAMPLE_QUESTIONS))
     for col, (label, sample) in zip(cols, SAMPLE_QUESTIONS):
-        if col.button(label, help=sample, use_container_width=True, key=f"{key_prefix}_{label}"):
+        if col.button(label, help=sample, width="stretch", key=f"{key_prefix}_{label}"):
             st.session_state[target_key] = sample
 
 
@@ -154,7 +154,7 @@ def render_compare_all() -> None:
                     }
                 )
                 progress.progress((i + 1) / len(combos))
-            st.dataframe(rows, use_container_width=True)
+            st.dataframe(rows, width="stretch")
 
 
 def render() -> None:

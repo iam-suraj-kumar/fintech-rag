@@ -125,7 +125,7 @@ def render() -> None:
         "How a question turns into a cited answer -- from PDF to response. "
         "Expand each stage for the underlying implementation."
     )
-    st.graphviz_chart(FLOW_DIAGRAM, use_container_width=True)
+    st.graphviz_chart(FLOW_DIAGRAM, width="stretch")
 
     for stage in STAGES:
         with st.expander(stage["title"]):
@@ -137,6 +137,6 @@ def render() -> None:
     st.subheader("File map")
     st.dataframe(
         [{"File": f, "Responsibility": r} for f, r in FILE_MAP],
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )

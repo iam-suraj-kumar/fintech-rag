@@ -1,6 +1,6 @@
 import streamlit as st
 
-from tabs import architecture, pipeline_comparison, qa
+from ui.tabs import architecture, pipeline_comparison, qa
 
 CUSTOM_CSS = """
 <style>

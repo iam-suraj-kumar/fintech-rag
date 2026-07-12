@@ -6,7 +6,7 @@ from core.models import RetrievedChunk
 
 
 def embed_query_dense(query: str) -> list[float]:
-    return embed_dense([query], input_type="query")[0]
+    return embed_dense([query])[0]
 
 
 def embed_query_sparse(query: str) -> models.SparseVector:

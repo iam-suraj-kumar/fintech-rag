@@ -14,12 +14,11 @@ def _get_openai_client():
     return _clients["openai"]
 
 
-def embed_dense(texts: list[str], input_type: str) -> list[list[float]]:
+def embed_dense(texts: list[str]) -> list[list[float]]:
     """Embed texts with the OpenAI embeddings API.
 
-    input_type ("query" or "document") is accepted for call-site
-    compatibility but unused -- OpenAI embeddings are symmetric. Model can be
-    overridden via the EMBEDDING_MODEL env var.
+    OpenAI embeddings are symmetric, so the caller does not need to pass an
+    input type. The model can be overridden via the EMBEDDING_MODEL env var.
     """
     client = _get_openai_client()
     response = client.embeddings.create(model=MODEL, input=texts, dimensions=EMBEDDING_DIM)

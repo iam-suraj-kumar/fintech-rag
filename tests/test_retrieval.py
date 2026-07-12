@@ -1,6 +1,7 @@
 import os
 
 import pytest
+import voyageai
 from qdrant_client import models
 
 pytestmark = pytest.mark.skipif(
@@ -41,7 +42,7 @@ FIXTURE_CHUNKS = [
 @pytest.fixture
 def seeded_collection(monkeypatch):
     import core.retrieval as mod
-    from core.clients import get_qdrant_client, get_sparse_model, get_voyage_client
+    from core.clients import get_qdrant_client, get_sparse_model
 
     client = get_qdrant_client()
     monkeypatch.setattr(mod, "COLLECTION_NAME", TEST_COLLECTION)
@@ -54,7 +55,7 @@ def seeded_collection(monkeypatch):
         sparse_vectors_config={"sparse": models.SparseVectorParams()},
     )
 
-    voyage = get_voyage_client()
+    voyage = voyageai.Client(api_key=os.environ["VOYAGE_API_KEY"])
     sparse_model = get_sparse_model()
     texts = [c["text"] for c in FIXTURE_CHUNKS]
     dense_vectors = voyage.embed(texts, model="voyage-finance-2", input_type="document").embeddings

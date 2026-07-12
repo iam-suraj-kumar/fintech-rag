@@ -162,10 +162,13 @@ def render() -> None:
         "Compares two PDF chunking pipelines (basic PyPDFLoader+regex vs. advanced docling) "
         "and five retrieval strategies over Apple's 10-K."
     )
-    render_stats()
-    st.divider()
-    render_sample_chunk_viewer()
-    st.divider()
-    render_single_query()
-    st.divider()
-    render_compare_all()
+
+    tab_overview, tab_try_it = st.tabs(["Overview", "Try It"])
+    with tab_overview:
+        render_stats()
+        st.divider()
+        render_sample_chunk_viewer()
+    with tab_try_it:
+        render_single_query()
+        st.divider()
+        render_compare_all()

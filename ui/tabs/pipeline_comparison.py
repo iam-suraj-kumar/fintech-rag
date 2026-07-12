@@ -6,6 +6,7 @@ import streamlit as st
 
 from core.rag import answer_question
 from ingestion.chunk_filings import _token_length
+from ui.tabs.qa import SAMPLE_QUESTIONS
 
 PIPELINES = {
     "Basic (PyPDFLoader + regex)": {
@@ -100,8 +101,16 @@ def render_sample_chunk_viewer() -> None:
             st.write("No table-like chunk found.")
 
 
+def render_sample_question_chips(target_key: str, key_prefix: str) -> None:
+    cols = st.columns(len(SAMPLE_QUESTIONS))
+    for col, (label, sample) in zip(cols, SAMPLE_QUESTIONS):
+        if col.button(label, help=sample, use_container_width=True, key=f"{key_prefix}_{label}"):
+            st.session_state[target_key] = sample
+
+
 def render_single_query() -> None:
     st.subheader("Ask a question")
+    render_sample_question_chips("single_question", "single")
     question = st.text_input("Question", key="single_question")
     pipeline_label = st.selectbox("Chunking pipeline", list(PIPELINES.keys()))
     strategy_label = st.selectbox("Retrieval strategy", list(STRATEGY_LABELS.keys()))
@@ -122,6 +131,7 @@ def render_single_query() -> None:
 
 def render_compare_all() -> None:
     with st.expander("Compare all (2 pipelines x 5 strategies -- slower, several extra LLM calls)"):
+        render_sample_question_chips("compare_question", "compare")
         question = st.text_input("Question", key="compare_question")
         if st.button("Run full matrix") and question:
             rows = []

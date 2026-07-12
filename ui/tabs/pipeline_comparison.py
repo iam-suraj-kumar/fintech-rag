@@ -147,14 +147,11 @@ def render_compare_all() -> None:
             st.dataframe(rows, use_container_width=True)
 
 
-def main() -> None:
-    st.set_page_config(page_title="Pipeline Comparison")
-    st.title("Chunking + Retrieval Strategy Comparison")
+def render() -> None:
     st.caption(
         "Compares two PDF chunking pipelines (basic PyPDFLoader+regex vs. advanced docling) "
         "and five retrieval strategies over Apple's 10-K."
     )
-
     render_stats()
     st.divider()
     render_sample_chunk_viewer()
@@ -162,7 +159,3 @@ def main() -> None:
     render_single_query()
     st.divider()
     render_compare_all()
-
-
-if __name__ == "__main__":
-    main()

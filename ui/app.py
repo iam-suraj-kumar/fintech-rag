@@ -1,39 +1,63 @@
 import streamlit as st
 
-from core.models import RAGAnswer
-from core.rag import answer_question
+from tabs import architecture, pipeline_comparison, qa
 
-COMPANIES = [
-    "Apple (AAPL)",
-]
+CUSTOM_CSS = """
+<style>
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 3rem;
+    max-width: 1100px;
+}
+h1 {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+.stTabs [data-baseweb="tab-list"] {
+    gap: 4px;
+}
+.stTabs [data-baseweb="tab"] {
+    padding: 8px 18px;
+    border-radius: 8px 8px 0 0;
+}
+div[data-testid="stExpander"] {
+    border: 1px solid rgba(45, 212, 191, 0.25);
+    border-radius: 10px;
+}
+div[data-testid="stMetric"] {
+    background: rgba(45, 212, 191, 0.06);
+    border: 1px solid rgba(45, 212, 191, 0.18);
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+</style>
+"""
 
 
-def render_answer(result: RAGAnswer) -> None:
-    st.write(result.answer)
-    if result.citations:
-        with st.expander(f"Sources ({len(result.citations)})"):
-            for citation in result.citations:
-                st.markdown(
-                    f"**{citation.company_name}** — {citation.section} "
-                    f"(FY{citation.fiscal_year})"
-                )
-                st.caption(citation.text_snippet)
+def render_sidebar() -> None:
+    with st.sidebar:
+        st.subheader("Companies in this demo")
+        for company in qa.COMPANIES:
+            st.write(f"- {company}")
 
 
 def main() -> None:
-    st.set_page_config(page_title="FinTech RAG Demo")
+    st.set_page_config(page_title="FinTech RAG Demo", layout="wide")
+    st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
     st.title("SEC Filing Q&A")
+    st.caption(
+        "A retrieval-augmented generation demo over Apple's FY2024 10-K, "
+        "with citations grounded in the source text."
+    )
+    render_sidebar()
 
-    with st.sidebar:
-        st.subheader("Companies in this demo")
-        for company in COMPANIES:
-            st.write(f"- {company}")
-
-    question = st.text_input("Ask a question about these filings")
-    if st.button("Ask") and question:
-        with st.spinner("Retrieving and generating answer..."):
-            result = answer_question(question)
-        render_answer(result)
+    tab_qa, tab_compare, tab_arch = st.tabs(["Q&A", "Pipeline Comparison", "Architecture"])
+    with tab_qa:
+        qa.render()
+    with tab_compare:
+        pipeline_comparison.render()
+    with tab_arch:
+        architecture.render()
 
 
 if __name__ == "__main__":

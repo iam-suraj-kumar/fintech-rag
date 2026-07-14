@@ -1,6 +1,10 @@
+import logging
+
 import streamlit as st
 
 from ui.tabs import architecture, evaluation, pipeline_comparison, qa
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
 CUSTOM_CSS = """
 <style>

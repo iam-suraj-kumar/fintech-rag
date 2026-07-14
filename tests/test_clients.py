@@ -35,6 +35,6 @@ def test_get_sparse_model_returns_same_instance_on_repeated_calls(reset_client_s
 
 
 def test_module_constants():
-    assert mod.COLLECTION_NAME == "sec_filings"
+    assert mod.COLLECTION_NAME == "sec_filings_advanced"
     assert mod.SPARSE_MODEL == "Qdrant/bm25"
     assert mod.QDRANT_URL == "http://localhost:6333"

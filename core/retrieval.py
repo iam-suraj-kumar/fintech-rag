@@ -1,8 +1,12 @@
+import logging
+
 from qdrant_client import models
 
 from core.clients import COLLECTION_NAME, get_qdrant_client, get_sparse_model
 from core.embeddings import embed_dense
 from core.models import RetrievedChunk
+
+logger = logging.getLogger(__name__)
 
 
 def embed_query_dense(query: str) -> list[float]:
@@ -21,6 +25,7 @@ def hybrid_search(
 ) -> list[RetrievedChunk]:
     """Run hybrid (dense + sparse) search over the given collection, fused via RRF."""
     collection_name = collection_name or COLLECTION_NAME
+    logger.info("hybrid_search: collection=%r top_k=%d query=%r", collection_name, top_k, query)
     dense_vector = embed_query_dense(query)
     sparse_vector = embed_query_sparse(query)
 
@@ -33,6 +38,7 @@ def hybrid_search(
         query=models.FusionQuery(fusion=models.Fusion.RRF),
         limit=top_k,
     )
+    logger.info("hybrid_search: retrieved %d points from %r", len(results.points), collection_name)
 
     return [
         RetrievedChunk(

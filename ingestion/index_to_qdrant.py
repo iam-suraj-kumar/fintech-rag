@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 
 from qdrant_client import models
@@ -9,6 +10,8 @@ from core.embeddings import embed_dense as _embed_dense
 from core.models import FilingChunk
 from ingestion.fetch_filings import COMPANIES
 
+logger = logging.getLogger(__name__)
+
 CHUNKS_DIR = Path("data/chunks")
 
 
@@ -16,7 +19,9 @@ def ensure_collection(collection_name: str | None = None) -> None:
     collection_name = collection_name or COLLECTION_NAME
     client = get_qdrant_client()
     if client.collection_exists(collection_name):
+        logger.info("Collection %r already exists", collection_name)
         return
+    logger.info("Creating collection %r", collection_name)
     client.create_collection(
         collection_name=collection_name,
         vectors_config={
@@ -29,7 +34,7 @@ def ensure_collection(collection_name: str | None = None) -> None:
 
 
 def embed_dense(texts: list[str]) -> list[list[float]]:
-    return _embed_dense(texts, input_type="document")
+    return _embed_dense(texts)
 
 
 def load_chunks(ticker: str, chunks_dir: Path | None = None) -> list[FilingChunk]:
@@ -49,9 +54,11 @@ def index_all_filings(collection_name: str | None = None, chunks_dir: Path | Non
     point_id = 0
     for ticker in COMPANIES:
         chunks = load_chunks(ticker, chunks_dir)
+        logger.info("Loaded %d chunks for %s from %s", len(chunks), ticker, chunks_dir)
         texts = [c.text for c in chunks]
         dense_vectors = embed_dense(texts)
         sparse_vectors = list(sparse_model.embed(texts))
+        logger.info("Embedded %d chunks for %s (dense + sparse)", len(texts), ticker)
 
         points = []
         for chunk, dense_vec, sparse_vec in zip(chunks, dense_vectors, sparse_vectors):
@@ -77,7 +84,9 @@ def index_all_filings(collection_name: str | None = None, chunks_dir: Path | Non
             )
             point_id += 1
         client.upsert(collection_name=collection_name, points=points)
+        logger.info("Upserted %d points for %s into %r", len(points), ticker, collection_name)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     index_all_filings()

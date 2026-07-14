@@ -1,9 +1,12 @@
+import logging
 import re
 
 from core.llm import complete_with_usage
 from core.models import Citation, RAGAnswer, RetrievedChunk
 from core.retrieval import hybrid_search
 from core.retrieval_strategies import STRATEGIES
+
+logger = logging.getLogger(__name__)
 
 NOT_FOUND_MESSAGE = "I couldn't find information about this in the available filings."
 
@@ -65,17 +68,27 @@ def answer_question(
     (query rewriting, HyDE, multi-query fusion, re-ranking); "baseline" calls
     hybrid_search directly.
     """
+    logger.info("answer_question: strategy=%r collection=%r question=%r", strategy, collection_name, question)
+
     if strategy == "baseline":
         chunks = hybrid_search(question, top_k=8, collection_name=collection_name)
     else:
         chunks = STRATEGIES[strategy](question, collection_name=collection_name, top_k=8)
 
     if not chunks:
+        logger.info("answer_question: no chunks retrieved, returning not-found")
         return RAGAnswer(question=question, answer=NOT_FOUND_MESSAGE, citations=[])
 
     prompt = _build_prompt(question, chunks)
     llm_response = complete_with_usage(prompt)
     answer_text, citations = _parse_response(llm_response.text, chunks)
+    logger.info(
+        "answer_question: %d chunks retrieved, %d cited, %d input tokens, %d output tokens",
+        len(chunks),
+        len(citations),
+        llm_response.input_tokens,
+        llm_response.output_tokens,
+    )
 
     if not citations:
         return RAGAnswer(

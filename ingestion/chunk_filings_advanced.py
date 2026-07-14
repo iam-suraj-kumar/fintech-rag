@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 
 import tiktoken
@@ -13,6 +14,8 @@ from docling_core.transforms.serializer.markdown import MarkdownParams, Markdown
 
 from core.models import FilingChunk
 from ingestion.fetch_filings import COMPANIES
+
+logger = logging.getLogger(__name__)
 
 RAW_PDF_DIR = Path("data/raw_pdf")
 CHUNKS_DIR = Path("data/chunks_advanced")
@@ -39,6 +42,7 @@ def _build_chunker() -> HybridChunker:
 
 def chunk_filing_advanced(ticker: str, pdf_path: Path, fiscal_year: str) -> list[FilingChunk]:
     company_name = COMPANIES[ticker]["name"]
+    logger.info("Converting %s with docling", pdf_path)
     document = DocumentConverter().convert(str(pdf_path)).document
     chunker = _build_chunker()
 
@@ -59,6 +63,7 @@ def chunk_filing_advanced(ticker: str, pdf_path: Path, fiscal_year: str) -> list
                 pipeline="advanced",
             )
         )
+    logger.info("Chunked %s into %d chunks (advanced pipeline)", ticker, len(chunks))
     return chunks
 
 
@@ -71,7 +76,9 @@ def chunk_all_filings_advanced(fiscal_year: str = "2024") -> None:
         out_path.write_text(
             json.dumps([c.__dict__ for c in chunks], indent=2), encoding="utf-8"
         )
+        logger.info("Wrote %d chunks for %s to %s", len(chunks), ticker, out_path)
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     chunk_all_filings_advanced()

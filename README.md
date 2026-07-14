@@ -2,24 +2,37 @@
 
 A retrieval-augmented generation demo that answers questions about public companies' SEC 10-K filings, with citations grounded in the source text.
 
-Filings for five companies (Apple, JPMorgan, Visa, Bank of America, Wells Fargo) are fetched from SEC EDGAR, chunked by section, embedded, and indexed in Qdrant for hybrid (dense + sparse) retrieval. Questions are answered by an LLM constrained to cite only the retrieved excerpts.
+Currently configured for Apple only (`ingestion/fetch_filings.py:COMPANIES`); add more tickers there to extend it. The filing is ingested as a PDF through two parallel chunking pipelines — "basic" (naive PDF text extraction) and "advanced" (docling layout-aware parsing) — each embedded and indexed into its own Qdrant collection so they can be compared side by side. Questions are answered by an LLM constrained to cite only the retrieved excerpts.
 
 ## Architecture
 
 ```
-ingestion/fetch_filings.py   → data/raw/{TICKER}.html      (SEC EDGAR 10-Ks)
-ingestion/chunk_filings.py   → data/chunks/{TICKER}.json    (section-tagged FilingChunks)
-ingestion/index_to_qdrant.py → Qdrant "sec_filings" collection (dense + sparse vectors)
+ingestion/fetch_filing_pdf.py       → data/raw_pdf/{TICKER}.pdf         (company-published 10-K PDF)
+ingestion/chunk_filings_basic.py    → data/chunks_basic/{TICKER}.json    (PyPDFLoader + regex sections)
+ingestion/chunk_filings_advanced.py → data/chunks_advanced/{TICKER}.json (docling HybridChunker, layout-aware)
+ingestion/text_utils.py             — shared token-length + Item-header section splitting
+ingestion/index_to_qdrant.py        → Qdrant collection (dense + sparse vectors); also used by:
+ingestion/index_comparison_collections.py → indexes both chunk sets into
+                                       "sec_filings_basic" and "sec_filings_advanced"
 
 core/retrieval.py  hybrid_search()   — dense + sparse fusion (RRF) over Qdrant
 core/rag.py        answer_question() — retrieves chunks, prompts LLM, parses cited answer
-core/llm.py        complete()        — provider-agnostic LLM call (anthropic | openai | local)
-core/embeddings.py embed_dense()     — provider-agnostic dense embeddings (voyage | openai | local)
-core/clients.py                      — Qdrant / sparse-model / dense-embedding client factories
+core/llm.py        complete()        — OpenAI chat completion, with token/cost accounting
+core/embeddings.py embed_dense()     — OpenAI dense embeddings
+core/clients.py                      — Qdrant / sparse-model client factories; COLLECTION_NAME sets
+                                        which collection the Q&A tab queries (currently "sec_filings_advanced")
 core/models.py                       — FilingChunk, RetrievedChunk, Citation, RAGAnswer
 
-ui/app.py — Streamlit chat UI over answer_question()
+ui/app.py                     — Streamlit app entrypoint (Q&A, Pipeline Comparison, Architecture, Eval tabs)
+ui/tabs/qa.py                  — chat UI over answer_question()
+ui/tabs/pipeline_comparison.py — side-by-side basic vs. advanced retrieval/chunking comparison
+ui/tabs/evaluation.py          — runs/inspects the eval/ golden-dataset harness
+
+eval/golden_dataset.py — hand-labeled questions with expected sections/answers, used to score retrieval + generation
+eval/run_eval.py        — scores answer_question() against the golden set
 ```
+
+Console logging: ingestion scripts and `core/retrieval.py`/`core/rag.py` emit `logging` INFO records (chunk counts, upsert counts, retrieval hits, token usage). `ui/app.py` and each ingestion script's `__main__` block call `logging.basicConfig(level=logging.INFO)`, so logs show up in the terminal running Streamlit or the script.
 
 ## Setup
 
@@ -35,28 +48,37 @@ cp .env.example .env          # fill in API keys
 
 | Variable | Purpose |
 |---|---|
-| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `VOYAGE_API_KEY` | provider credentials |
+| `OPENAI_API_KEY` | required — both LLM completion (`core/llm.py`) and dense embeddings (`core/embeddings.py`) call OpenAI directly |
 | `QDRANT_URL` | Qdrant endpoint (default `http://localhost:6333`) |
-| `LLM_PROVIDER` | `anthropic` \| `openai` \| `local` |
-| `EMBEDDING_PROVIDER` | `voyage` \| `openai` \| `local` |
-| `LLM_MODEL` / `EMBEDDING_MODEL` | optional overrides; see `core/llm.py` / `core/embeddings.py` for defaults |
-| `LOCAL_LLM_BASE_URL` / `LOCAL_EMBEDDING_BASE_URL` | used only when the corresponding provider is `local` (e.g. Ollama) |
+| `LLM_MODEL` | optional override, default `gpt-4o` |
+| `EMBEDDING_MODEL` | optional override, default `text-embedding-3-small` |
 
 ## Ingestion pipeline
 
-Run in order to populate the index from scratch:
+Make sure Qdrant is running first:
 
 ```bash
-python -m ingestion.fetch_filings     # fetch latest 10-Ks into data/raw/
-python -m ingestion.chunk_filings     # split into section-tagged chunks in data/chunks/
-python -m ingestion.index_to_qdrant   # embed + upsert chunks into Qdrant
+docker start fintech-rag-phase1-qdrant-1   # or: docker compose up -d
 ```
+
+Run in order to populate both comparison collections from scratch:
+
+```bash
+python -m ingestion.fetch_filing_pdf              # fetch each ticker's 10-K PDF into data/raw_pdf/
+python -m ingestion.chunk_filings_basic            # naive PyPDFLoader + regex sections → data/chunks_basic/
+python -m ingestion.chunk_filings_advanced         # docling layout-aware chunking → data/chunks_advanced/
+python -m ingestion.index_comparison_collections   # embed + upsert both sets into
+                                                    #   "sec_filings_basic" and "sec_filings_advanced"
+```
+
+`core/clients.py:COLLECTION_NAME` controls which collection the Q&A tab and `answer_question()` query by default (currently `"sec_filings_advanced"`); pass `collection_name=` explicitly to query a different one. Each step logs progress (pages/sections/chunks/points) via `logging` — see the Architecture section above.
 
 ## Usage
 
 ```bash
 python scripts/smoke_test.py   # sanity-check the RAG pipeline with sample questions
-streamlit run ui/app.py        # interactive Q&A UI
+streamlit run ui/app.py        # interactive Q&A UI, Pipeline Comparison, Architecture, and Eval tabs
+python -m eval.run_eval         # score answer_question() against eval/golden_dataset.py
 ```
 
 Or call the pipeline directly:
@@ -72,7 +94,7 @@ for citation in result.citations:
 
 ## Sample questions
 
-Questions to try against the demo corpus (Apple's FY2024 10-K), spanning exact-term and semantic retrieval:
+Questions to try against the demo corpus, spanning exact-term and semantic retrieval. Note: `PDF_URLS` in `ingestion/fetch_filing_pdf.py` points at Apple's *latest* published 10-K PDF, which drifts over time as Apple files new ones — chunks are tagged `fiscal_year="2024"` by a hardcoded default in the chunking scripts regardless of which fiscal year the PDF actually covers, so double-check that label against the retrieved text before trusting a "fiscal 2024" answer.
 
 **Exact-term / factual**
 - What was Apple's total net sales for fiscal year 2024?

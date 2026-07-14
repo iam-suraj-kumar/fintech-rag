@@ -5,7 +5,7 @@ from qdrant_client import QdrantClient
 
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
 SPARSE_MODEL = "Qdrant/bm25"
-COLLECTION_NAME = "sec_filings"
+COLLECTION_NAME = "sec_filings_advanced"
 
 _qdrant_client: QdrantClient | None = None
 _sparse_model: SparseTextEmbedding | None = None

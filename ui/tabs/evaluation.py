@@ -134,6 +134,20 @@ def render() -> None:
         "under-count query_rewrite/HyDE/multi_query/rerank, since only their final generation "
         "call is tracked, not the LLM pre-processing step those strategies add."
     )
+    with st.expander("Metric definitions"):
+        st.markdown(
+            "- **Hit rate** — did any of the top-k retrieved chunks come from the "
+            "expected ticker/section? Deterministic, no LLM involved.\n"
+            "- **Mean MRR** (mean reciprocal rank) — `1 / rank` of the first relevant "
+            "chunk, averaged across questions. Rewards ranking the right chunk *first*, "
+            "not just retrieving it somewhere in the top-k.\n"
+            "- **Faithfulness** — LLM-judge score (1-5): is the generated answer fully "
+            "grounded in the retrieved chunks, with no invented or contradicted facts?\n"
+            "- **Correctness** — LLM-judge score (1-5): does the generated answer match "
+            "the key facts in the question's hand-written reference answer?\n"
+            "- **Correct refusals** — for the 'not found' trap questions only: did the "
+            "app correctly decline to answer (zero citations) instead of guessing?"
+        )
     render_single_run()
     st.divider()
     render_compare_all()

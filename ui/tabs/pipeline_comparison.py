@@ -5,7 +5,7 @@ from pathlib import Path
 import streamlit as st
 
 from core.rag import answer_question
-from ingestion.chunk_filings import _token_length
+from ingestion.text_utils import token_length
 from ui.markdown_table import render_table
 from ui.tabs.qa import SAMPLE_QUESTIONS
 
@@ -44,7 +44,7 @@ def is_table_chunk(text: str) -> bool:
 def chunk_stats(chunks: list[dict]) -> dict:
     if not chunks:
         return {"count": 0, "avg_tokens": 0, "table_chunks": 0}
-    token_counts = [_token_length(c["text"]) for c in chunks]
+    token_counts = [token_length(c["text"]) for c in chunks]
     return {
         "count": len(chunks),
         "avg_tokens": round(sum(token_counts) / len(token_counts)),

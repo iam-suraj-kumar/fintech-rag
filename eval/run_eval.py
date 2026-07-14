@@ -6,7 +6,7 @@ from core.rag import answer_question
 from core.retrieval_strategies import STRATEGIES
 from eval.golden_dataset import GOLDEN_SET, EvalExample
 from eval.judge import judge_correctness, judge_faithfulness
-from eval.retrieval_metrics import hit_rate, reciprocal_rank
+from eval.retrieval_metrics import hit_rate, reciprocal_rank, recall_at_k
 
 PIPELINE_COLLECTIONS = {"basic": "sec_filings_basic", "advanced": "sec_filings_advanced"}
 
@@ -28,6 +28,7 @@ def run_example(
             "correctly_refused": len(result.citations) == 0,
             "hit": None,
             "mrr": None,
+            "recall": None,
             "faithfulness": None,
             "correctness": None,
             "cost_usd": result.cost_usd,
@@ -36,6 +37,7 @@ def run_example(
     chunks = STRATEGIES[strategy](example.question, collection_name=collection, top_k=top_k)
     hit = hit_rate(chunks, example)
     mrr = reciprocal_rank(chunks, example)
+    recall = recall_at_k(chunks, example, k=top_k)
 
     faithfulness = None
     correctness = None
@@ -58,6 +60,7 @@ def run_example(
         "correctly_refused": None,
         "hit": hit,
         "mrr": mrr,
+        "recall": recall,
         "faithfulness": faithfulness,
         "correctness": correctness,
         "cost_usd": result.cost_usd + judge_cost,
@@ -76,6 +79,7 @@ def summarize(rows: list[dict]) -> dict:
         "n_examples": len(rows),
         "hit_rate": _mean([1.0 if r["hit"] else 0.0 for r in findable]),
         "mean_mrr": _mean([r["mrr"] for r in findable]),
+        "mean_recall": _mean([r["recall"] for r in findable]),
         "mean_faithfulness": _mean([r["faithfulness"] for r in findable]),
         "mean_correctness": _mean([r["correctness"] for r in findable]),
         "correct_refusal_rate": _mean(
@@ -115,6 +119,7 @@ def main() -> None:
     print(f"examples: {summary['n_examples']}  wall time: {elapsed:.1f}s")
     print(f"hit rate: {summary['hit_rate']}")
     print(f"mean MRR: {summary['mean_mrr']}")
+    print(f"mean recall: {summary['mean_recall']}")
     print(f"mean faithfulness: {summary['mean_faithfulness']}")
     print(f"mean correctness: {summary['mean_correctness']}")
     print(f"correct refusal rate: {summary['correct_refusal_rate']}")

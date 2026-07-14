@@ -116,6 +116,7 @@ def test_run_example_marks_correct_refusal_and_skips_judge():
 
     assert row["should_find"] is False
     assert row["correctly_refused"] is True
+    assert row["recall"] is None
     mock_faith.assert_not_called()
     mock_correct.assert_not_called()
 
@@ -138,6 +139,7 @@ def test_run_example_populates_metrics_for_findable_example():
 
     assert row["hit"] is True
     assert row["mrr"] == 1.0
+    assert row["recall"] == 1.0
     assert row["faithfulness"] == 4
     assert row["correctness"] == 5
     assert row["cost_usd"] == 0.003 + 0.0005 + 0.0005

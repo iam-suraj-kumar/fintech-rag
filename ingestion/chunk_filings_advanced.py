@@ -14,6 +14,7 @@ from docling_core.transforms.serializer.markdown import MarkdownParams, Markdown
 
 from core.models import FilingChunk
 from ingestion.fetch_filings import COMPANIES
+from ingestion.text_utils import ITEM_HEADER_RE
 
 logger = logging.getLogger(__name__)
 
@@ -47,11 +48,25 @@ def chunk_filing_advanced(ticker: str, pdf_path: Path, fiscal_year: str) -> list
     chunker = _build_chunker()
 
     chunks = []
+    current_item = None
     for chunk in chunker.chunk(dl_doc=document):
         text = chunker.contextualize(chunk)
         if not text.strip():
             continue
-        section = " > ".join(chunk.meta.headings) if chunk.meta.headings else "Full Document"
+
+        headings = chunk.meta.headings or []
+        for heading in headings:
+            match = ITEM_HEADER_RE.match(heading.strip())
+            if match:
+                current_item = match.group(1).strip()
+                break
+
+        heading_path = " > ".join(headings) if headings else "Full Document"
+        if current_item and not heading_path.startswith(current_item):
+            section = f"{current_item} > {heading_path}"
+        else:
+            section = heading_path
+
         chunks.append(
             FilingChunk(
                 ticker=ticker,

@@ -36,11 +36,10 @@ Console logging: ingestion scripts and `core/retrieval.py`/`core/rag.py` emit `l
 
 ## Setup
 
-Requires Python 3.11+ and Docker (for Qdrant).
+Requires Python 3.11+. Qdrant runs in embedded "local mode" by default (on-disk storage under `data/qdrant_local/`) — no server or Docker required.
 
 ```bash
 pip install -e ".[dev]"
-docker compose up -d          # starts Qdrant on localhost:6333
 cp .env.example .env          # fill in API keys
 ```
 
@@ -49,17 +48,12 @@ cp .env.example .env          # fill in API keys
 | Variable | Purpose |
 |---|---|
 | `PORTKEY_API_KEY` | required — both LLM completion (`core/llm.py`) and dense embeddings (`core/embeddings.py`) call OpenAI-family models through Portkey |
-| `QDRANT_URL` | Qdrant endpoint (default `http://localhost:6333`) |
+| `QDRANT_LOCAL_PATH` | optional override, default `data/qdrant_local` — on-disk path for Qdrant's embedded local mode |
+| `QDRANT_URL` | optional — set to point at a running Qdrant server instead of local mode (e.g. `docker compose up -d` with `docker-compose.yml`, then `http://localhost:6333`) |
 | `LLM_MODEL` | optional override, default `@demo-fintech/gpt-4o` |
 | `EMBEDDING_MODEL` | optional override, default `@demo-fintech/text-embedding-3-small` |
 
 ## Ingestion pipeline
-
-Make sure Qdrant is running first:
-
-```bash
-docker start fintech-rag-phase1-qdrant-1   # or: docker compose up -d
-```
 
 Run in order to populate both comparison collections from scratch:
 

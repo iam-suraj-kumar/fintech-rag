@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from ingestion.index_to_qdrant import index_all_filings
@@ -12,4 +13,5 @@ def index_comparison_collections() -> None:
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     index_comparison_collections()

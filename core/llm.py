@@ -24,7 +24,14 @@ def _get_portkey_client():
     if "portkey" not in _clients:
         from portkey_ai import Portkey
 
-        _clients["portkey"] = Portkey(api_key=os.environ["PORTKEY_API_KEY"])
+        api_key = os.environ.get("PORTKEY_API_KEY")
+        if not api_key:
+            # An empty key makes the Portkey SDK silently fall back to its
+            # local-gateway default (http://localhost:8787/v1) instead of
+            # erroring, which surfaces as a confusing connection-refused deep
+            # in httpx rather than a clear "missing API key" message.
+            raise RuntimeError("PORTKEY_API_KEY is not set. Add it to your .env file.")
+        _clients["portkey"] = Portkey(api_key=api_key)
     return _clients["portkey"]
 
 

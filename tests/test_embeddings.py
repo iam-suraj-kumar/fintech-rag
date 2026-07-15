@@ -19,7 +19,7 @@ class FakeClient:
 def test_embed_dense_does_not_require_input_type(monkeypatch):
     fake_client = FakeClient()
 
-    monkeypatch.setattr("core.embeddings._get_openai_client", lambda: fake_client)
+    monkeypatch.setattr("core.embeddings._get_portkey_client", lambda: fake_client)
 
     embeddings = embed_dense(["one", "two"])
 

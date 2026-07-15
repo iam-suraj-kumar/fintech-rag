@@ -17,8 +17,8 @@ ingestion/index_comparison_collections.py → indexes both chunk sets into
 
 core/retrieval.py  hybrid_search()   — dense + sparse fusion (RRF) over Qdrant
 core/rag.py        answer_question() — retrieves chunks, prompts LLM, parses cited answer
-core/llm.py        complete()        — OpenAI chat completion, with token/cost accounting
-core/embeddings.py embed_dense()     — OpenAI dense embeddings
+core/llm.py        complete()        — chat completion via Portkey, with token/cost accounting
+core/embeddings.py embed_dense()     — dense embeddings via Portkey
 core/clients.py                      — Qdrant / sparse-model client factories; COLLECTION_NAME sets
                                         which collection the Q&A tab queries (currently "sec_filings_advanced")
 core/models.py                       — FilingChunk, RetrievedChunk, Citation, RAGAnswer
@@ -48,10 +48,10 @@ cp .env.example .env          # fill in API keys
 
 | Variable | Purpose |
 |---|---|
-| `OPENAI_API_KEY` | required — both LLM completion (`core/llm.py`) and dense embeddings (`core/embeddings.py`) call OpenAI directly |
+| `PORTKEY_API_KEY` | required — both LLM completion (`core/llm.py`) and dense embeddings (`core/embeddings.py`) call OpenAI-family models through Portkey |
 | `QDRANT_URL` | Qdrant endpoint (default `http://localhost:6333`) |
-| `LLM_MODEL` | optional override, default `gpt-4o` |
-| `EMBEDDING_MODEL` | optional override, default `text-embedding-3-small` |
+| `LLM_MODEL` | optional override, default `@demo-fintech/gpt-4o` |
+| `EMBEDDING_MODEL` | optional override, default `@demo-fintech/text-embedding-3-small` |
 
 ## Ingestion pipeline
 

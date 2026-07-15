@@ -55,7 +55,7 @@ STAGES = [
             "search, so hybrid retrieval can use either signal."
         ),
         "low_level": (
-            "`core/embeddings.py: embed_dense()` calls OpenAI's `text-embedding-3-small` "
+            "`core/embeddings.py: embed_dense()` calls `text-embedding-3-small` via Portkey "
             "(`EMBEDDING_DIM = 1536`). The sparse side is Qdrant's built-in BM25 FastEmbed "
             "model, invoked inline during indexing."
         ),
@@ -97,7 +97,7 @@ STAGES = [
         ),
         "low_level": (
             "`core/rag.py: answer_question()` builds a prompt constrained to the retrieved "
-            "chunks, calls `core/llm.py: complete()` (OpenAI `gpt-4o`), then parses the "
+            "chunks, calls `core/llm.py: complete()` (`gpt-4o` via Portkey), then parses the "
             "model's cited chunk indices back into `Citation` objects. If no chunk is "
             "retrieved, it returns a fixed \"not found\" answer instead of letting the model "
             "guess."
@@ -108,9 +108,9 @@ STAGES = [
 FILE_MAP = [
     ("core/__init__.py", "Loads .env on import so API keys are available everywhere."),
     ("core/models.py", "Shared dataclasses: FilingChunk, RetrievedChunk, Citation, RAGAnswer."),
-    ("core/embeddings.py", "Dense embedding calls (OpenAI text-embedding-3-small)."),
-    ("core/llm.py", "LLM completion calls (OpenAI gpt-4o), token/cost tracking, retries."),
-    ("core/retry.py", "Shared exponential-backoff retry wrapper for OpenAI calls."),
+    ("core/embeddings.py", "Dense embedding calls (text-embedding-3-small via Portkey)."),
+    ("core/llm.py", "LLM completion calls (gpt-4o via Portkey), token/cost tracking, retries."),
+    ("core/retry.py", "Shared exponential-backoff retry wrapper for Portkey calls."),
     ("core/retrieval.py", "hybrid_search() -- dense + sparse fusion (RRF) over Qdrant."),
     ("core/retrieval_strategies.py", "Five retrieval strategies built on hybrid_search()."),
     ("core/rag.py", "answer_question() -- the single public entrypoint: retrieve, prompt, cite."),
@@ -140,7 +140,7 @@ PRODUCTION_CONSIDERATIONS = [
         "title": "Retry / backoff on API calls",
         "status": "Implemented",
         "detail": (
-            "`core/retry.py: with_retry()` wraps the OpenAI chat-completion and embedding calls "
+            "`core/retry.py: with_retry()` wraps the Portkey chat-completion and embedding calls "
             "with exponential backoff on transient errors (connection, rate limit, timeout, "
             "5xx) -- previously a single flaky API call would kill an entire eval run or demo "
             "question."
@@ -178,7 +178,7 @@ PRODUCTION_CONSIDERATIONS = [
         "status": "Documented (not built)",
         "detail": (
             "Nothing throttles concurrent `answer_question()` calls against a shared, paid "
-            "OpenAI account -- a burst of traffic on a public demo instance has no ceiling."
+            "Portkey account -- a burst of traffic on a public demo instance has no ceiling."
         ),
     },
     {

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from core.retry import with_retry
 
-MODEL = os.environ.get("LLM_MODEL") or "gpt-4o"
+MODEL = os.environ.get("LLM_MODEL") or "@demo-fintech/gpt-4o"
 
 # USD per 1M tokens; gpt-4o pricing used as the default fallback for unlisted models.
 _PRICE_PER_1M_INPUT = {"gpt-4o": 2.50, "gpt-4o-mini": 0.15}
@@ -20,21 +20,21 @@ class LLMResponse:
     cost_usd: float
 
 
-def _get_openai_client():
-    if "openai" not in _clients:
-        import openai
+def _get_portkey_client():
+    if "portkey" not in _clients:
+        from portkey_ai import Portkey
 
-        _clients["openai"] = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    return _clients["openai"]
+        _clients["portkey"] = Portkey(api_key=os.environ["PORTKEY_API_KEY"])
+    return _clients["portkey"]
 
 
 def complete_with_usage(prompt: str, max_tokens: int = 1024) -> LLMResponse:
-    """Call the OpenAI API and return the response text plus token usage and estimated cost.
+    """Call the LLM via Portkey and return the response text plus token usage and estimated cost.
 
     Retries transient API errors with exponential backoff. Model can be overridden
     via the LLM_MODEL env var.
     """
-    client = _get_openai_client()
+    client = _get_portkey_client()
     response = with_retry(
         client.chat.completions.create,
         model=MODEL,
@@ -44,9 +44,10 @@ def complete_with_usage(prompt: str, max_tokens: int = 1024) -> LLMResponse:
     usage = response.usage
     input_tokens = usage.prompt_tokens if usage else 0
     output_tokens = usage.completion_tokens if usage else 0
+    model_name = MODEL.rsplit("/", 1)[-1]
     cost_usd = (
-        input_tokens / 1_000_000 * _PRICE_PER_1M_INPUT.get(MODEL, _PRICE_PER_1M_INPUT["gpt-4o"])
-        + output_tokens / 1_000_000 * _PRICE_PER_1M_OUTPUT.get(MODEL, _PRICE_PER_1M_OUTPUT["gpt-4o"])
+        input_tokens / 1_000_000 * _PRICE_PER_1M_INPUT.get(model_name, _PRICE_PER_1M_INPUT["gpt-4o"])
+        + output_tokens / 1_000_000 * _PRICE_PER_1M_OUTPUT.get(model_name, _PRICE_PER_1M_OUTPUT["gpt-4o"])
     )
     return LLMResponse(
         text=response.choices[0].message.content,
@@ -57,7 +58,7 @@ def complete_with_usage(prompt: str, max_tokens: int = 1024) -> LLMResponse:
 
 
 def complete(prompt: str, max_tokens: int = 1024) -> str:
-    """Call the OpenAI API and return its raw text response.
+    """Call the LLM via Portkey and return its raw text response.
 
     Model can be overridden via the LLM_MODEL env var.
     """

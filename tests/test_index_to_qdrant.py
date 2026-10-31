@@ -10,6 +10,10 @@ from ingestion import index_to_qdrant as mod
 @pytest.fixture
 def qdrant_client():
     client = QdrantClient(url="http://localhost:6333")
+    try:
+        client.get_collections()
+    except Exception:
+        pytest.skip("needs the Docker Qdrant server: docker compose up -d")
     yield client
     if client.collection_exists("test_collection"):
         client.delete_collection("test_collection")

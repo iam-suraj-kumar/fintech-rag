@@ -1,9 +1,9 @@
 from core.rag import answer_question
 
 QUESTIONS = [
-    "What was JPMorgan's net interest margin discussion in its most recent 10-K?",
+    "What was Apple's total net sales for fiscal year 2024?",
     "How does Apple describe supply chain risk?",
-    "What does Visa say about its net revenue?",
+    "What was Apple's revenue in fiscal year 2019?",  # not in the filing: should be refused
 ]
 
 

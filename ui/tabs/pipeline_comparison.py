@@ -4,6 +4,7 @@ from pathlib import Path
 
 import streamlit as st
 
+from core.clients import collection_for
 from core.rag import answer_question
 from ingestion.text_utils import token_length
 from ui.markdown_table import render_table
@@ -11,11 +12,11 @@ from ui.tabs.qa import SAMPLE_QUESTIONS
 
 PIPELINES = {
     "Basic (PyPDFLoader + regex)": {
-        "collection": "sec_filings_basic",
+        "collection": collection_for("sec_filings_basic"),
         "chunks_path": Path("data/chunks_basic/AAPL.json"),
     },
     "Advanced (docling)": {
-        "collection": "sec_filings_advanced",
+        "collection": collection_for("sec_filings_advanced"),
         "chunks_path": Path("data/chunks_advanced/AAPL.json"),
     },
 }

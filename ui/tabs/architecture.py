@@ -22,7 +22,7 @@ STAGES = [
     {
         "title": "1. Fetch",
         "high_level": (
-            "Pull the filing PDF from SEC EDGAR and cache it locally so ingestion is "
+            "Download the company-published 10-K PDF and cache it locally so ingestion is "
             "repeatable and offline."
         ),
         "low_level": (
@@ -43,7 +43,7 @@ STAGES = [
             "`chunk_size=800`, `chunk_overlap=150` tokens.\n\n"
             "`ingestion/chunk_filings_advanced.py`: docling's `HybridChunker` (with an "
             "`OpenAITokenizer`) parses the PDF's real structure (tables, headings) and "
-            "produces table-aware chunks.\n\n"
+            "produces table-aware chunks of at most 800 tokens, tables kept as markdown.\n\n"
             "Both tag each chunk with a `pipeline` field (`FilingChunk.pipeline` in "
             "`core/models.py`) so the two runs never mix in Qdrant."
         ),
@@ -55,9 +55,10 @@ STAGES = [
             "search, so hybrid retrieval can use either signal."
         ),
         "low_level": (
-            "`core/embeddings.py: embed_dense()` calls OpenAI's `text-embedding-3-small` "
-            "(`EMBEDDING_DIM = 1536`). The sparse side is Qdrant's built-in BM25 FastEmbed "
-            "model, invoked inline during indexing."
+            "`core/embeddings.py: embed_dense()` calls OpenAI `text-embedding-3-small` or Gemini "
+            "`gemini-embedding-001` (set by `EMBEDDING_PROVIDER`), both at `EMBEDDING_DIM = 1536`. "
+            "The sparse side is Qdrant's BM25 FastEmbed model (`Qdrant/bm25`), invoked inline "
+            "during indexing."
         ),
     },
     {
@@ -69,7 +70,9 @@ STAGES = [
         "low_level": (
             "`ingestion/index_to_qdrant.py: index_all_filings()` upserts into one Qdrant "
             "collection per pipeline -- `sec_filings_basic` and `sec_filings_advanced` -- so "
-            "the Pipeline Comparison tab can query either independently."
+            "the Pipeline Comparison tab can query either independently. Qdrant runs as a Docker "
+            "server (`QDRANT_URL`) or embedded in-process (`QDRANT_PATH`); see `core/clients.py`. "
+            "`ingestion/prepare.py: prepare_data()` runs fetch, chunk and index, skipping what exists."
         ),
     },
     {
@@ -97,10 +100,10 @@ STAGES = [
         ),
         "low_level": (
             "`core/rag.py: answer_question()` builds a prompt constrained to the retrieved "
-            "chunks, calls `core/llm.py: complete()` (OpenAI `gpt-4o`), then parses the "
-            "model's cited chunk indices back into `Citation` objects. If no chunk is "
-            "retrieved, it returns a fixed \"not found\" answer instead of letting the model "
-            "guess."
+            "chunks, calls `core/llm.py: complete_with_usage()` (OpenAI `gpt-4o` or Gemini "
+            "`gemini-3.5-flash`, set by `LLM_PROVIDER`), then parses the model's cited chunk "
+            "indices back into `Citation` objects. If nothing is retrieved, or the model cites "
+            "nothing, it returns a fixed \"not found\" answer instead of letting the model guess."
         ),
     },
 ]
@@ -108,9 +111,10 @@ STAGES = [
 FILE_MAP = [
     ("core/__init__.py", "Loads .env on import so API keys are available everywhere."),
     ("core/models.py", "Shared dataclasses: FilingChunk, RetrievedChunk, Citation, RAGAnswer."),
-    ("core/embeddings.py", "Dense embedding calls (OpenAI text-embedding-3-small)."),
-    ("core/llm.py", "LLM completion calls (OpenAI gpt-4o), token/cost tracking, retries."),
-    ("core/retry.py", "Shared exponential-backoff retry wrapper for OpenAI calls."),
+    ("core/clients.py", "Qdrant client (Docker server or embedded) and BM25 sparse model."),
+    ("core/embeddings.py", "Dense embedding calls (OpenAI or Gemini, set by EMBEDDING_PROVIDER)."),
+    ("core/llm.py", "LLM completion calls (OpenAI or Gemini, set by LLM_PROVIDER), token/cost tracking."),
+    ("core/retry.py", "Shared exponential-backoff retry wrapper for OpenAI and Gemini calls."),
     ("core/retrieval.py", "hybrid_search() -- dense + sparse fusion (RRF) over Qdrant."),
     ("core/retrieval_strategies.py", "Five retrieval strategies built on hybrid_search()."),
     ("core/rag.py", "answer_question() -- the single public entrypoint: retrieve, prompt, cite."),
@@ -124,6 +128,7 @@ FILE_MAP = [
     ("ingestion/chunk_filings_advanced.py", "docling HybridChunker, table-aware chunking."),
     ("ingestion/index_to_qdrant.py", "Embeds and upserts chunks into a Qdrant collection."),
     ("ingestion/index_comparison_collections.py", "Runs both pipelines into their own collections."),
+    ("ingestion/prepare.py", "One command for the whole ingestion; skips what already exists."),
 ]
 
 PRODUCTION_CONSIDERATIONS = [
@@ -140,7 +145,7 @@ PRODUCTION_CONSIDERATIONS = [
         "title": "Retry / backoff on API calls",
         "status": "Implemented",
         "detail": (
-            "`core/retry.py: with_retry()` wraps the OpenAI chat-completion and embedding calls "
+            "`core/retry.py: with_retry()` wraps the OpenAI and Gemini completion and embedding calls "
             "with exponential backoff on transient errors (connection, rate limit, timeout, "
             "5xx) -- previously a single flaky API call would kill an entire eval run or demo "
             "question."
@@ -170,7 +175,7 @@ PRODUCTION_CONSIDERATIONS = [
         "detail": (
             "API keys via `.env` are fine for a demo but not for shared deployment. "
             "`core/clients.py: get_qdrant_client()` talks to `QDRANT_URL` with no API key and "
-            "no TLS enforcement."
+            "no TLS enforcement (or opens a local folder via `QDRANT_PATH`)."
         ),
     },
     {
@@ -178,7 +183,7 @@ PRODUCTION_CONSIDERATIONS = [
         "status": "Documented (not built)",
         "detail": (
             "Nothing throttles concurrent `answer_question()` calls against a shared, paid "
-            "OpenAI account -- a burst of traffic on a public demo instance has no ceiling."
+            "LLM provider account -- a burst of traffic on a public demo instance has no ceiling."
         ),
     },
     {

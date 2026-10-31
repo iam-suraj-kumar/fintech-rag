@@ -12,7 +12,9 @@ from ingestion.fetch_filings import COMPANIES
 
 logger = logging.getLogger(__name__)
 
-CHUNKS_DIR = Path("data/chunks")
+# Defaults match COLLECTION_NAME ("sec_filings_advanced"); index_comparison_collections.py
+# passes both chunk dirs explicitly.
+CHUNKS_DIR = Path("data/chunks_advanced")
 
 
 def ensure_collection(collection_name: str | None = None) -> None:

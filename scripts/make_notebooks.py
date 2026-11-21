@@ -4,7 +4,14 @@
 
 Overwrites the notebooks and clears their outputs. Edit this file, not the .ipynb files.
 """
+import base64
+import hashlib
+import os
+import re
+import shlex
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import nbformat as nbf
@@ -13,25 +20,68 @@ OUT = Path(sys.argv[1])
 OUT.mkdir(parents=True, exist_ok=True)
 
 SETUP = '''# ── Settings ────────────────────────────────────────────────────────────
-# False: use the Qdrant server from `docker compose up -d`.
-# True:  no Docker. Qdrant runs inside this notebook and stores data in data/qdrant_local/.
-#        Restart the kernel after changing this, and run one notebook at a time
-#        (only one process can open the embedded folder).
-USE_EMBEDDED_QDRANT = False
+# In Colab these show as a checkbox and dropdowns (the model dropdown also takes typed names).
+# USE_EMBEDDED_QDRANT: False = the Qdrant server from `docker compose up -d`;
+#   True = no Docker: Qdrant runs inside this notebook, data in data/qdrant_local/
+#   (run one notebook at a time; only one process can open that folder). Always on in Colab.
+USE_EMBEDDED_QDRANT = False  # @param {type: "boolean"}
+LLM_PROVIDER = "default"  # @param ["default", "openai", "gemini"]
+EMBEDDING_PROVIDER = "default"  # @param ["default", "openai", "gemini"]
+LLM_MODEL = "default"  # @param ["default", "gpt-4o", "gpt-4o-mini", "gemini-3.5-flash", "gemini-3.8-flash"] {allow-input: true}
+# "default" = your .env, else openai / gpt-4o / text-embedding-3-small. Each provider needs its key
+# (OPENAI_API_KEY or GEMINI_API_KEY; in Colab add it under the key icon, Secrets). Changing the
+# embedding provider changes the vectors: delete data/qdrant_local or re-index (see README).
+# After changing these: restart the kernel (Colab: Runtime > Restart session) and run all.
 
-# Setup: run from the repo root so `core`/`ingestion` imports and data/ paths work.
 import logging
 import os
 import sys
 import warnings
 from pathlib import Path
 
+if "google.colab" in sys.modules:
+    # Google Colab: the notebook imports the repo's code (core/, ingestion/), so clone it and
+    # install the pinned packages on first run (minus torch: Colab's own is used); later runs pull updates.
+    import subprocess
+
+    REPO = Path("/content/fintech-rag")
+    if not REPO.exists():
+        print("Colab: cloning the repo and installing packages (a few minutes)...")
+        subprocess.run(["git", "clone", "-q", "-b", "develop",
+                        "https://github.com/iam-suraj-kumar/fintech-rag.git", str(REPO)], check=True)
+        subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-r", str(REPO / "requirements-colab.txt")], check=True)
+        print("Done. If a later cell fails to import, use Runtime > Restart session and run this cell again.")
+    else:
+        pulled = subprocess.run(["git", "-C", str(REPO), "pull", "-q", "--ff-only"], capture_output=True, text=True)
+        if pulled.returncode != 0:
+            print("Colab: could not update the repo:", pulled.stderr.strip())
+    os.chdir(REPO)
+    USE_EMBEDDED_QDRANT = True  # no Docker in Colab
+    from google.colab import userdata  # keys live under the key icon (Secrets) in the sidebar
+
+    for secret in ("OPENAI_API_KEY", "GEMINI_API_KEY"):
+        try:
+            os.environ.setdefault(secret, userdata.get(secret))
+        except Exception:
+            pass  # not added (or notebook access is off): fine unless that provider is chosen
+
+# Setup: run from the repo root so `core`/`ingestion` imports and data/ paths work.
 ROOT = Path.cwd().parent if Path.cwd().name == "notebooks" else Path.cwd()
 os.chdir(ROOT)
 sys.path.insert(0, str(ROOT))
 logging.basicConfig(level=logging.WARNING)
 if USE_EMBEDDED_QDRANT:
     os.environ["QDRANT_PATH"] = "data/qdrant_local"
+
+from dotenv import load_dotenv
+
+load_dotenv(ROOT / ".env")
+# The settings above win over .env unless left at "default".
+for setting, value in (("LLM_PROVIDER", LLM_PROVIDER), ("EMBEDDING_PROVIDER", EMBEDDING_PROVIDER), ("LLM_MODEL", LLM_MODEL)):
+    if value != "default":
+        os.environ[setting] = value
+if LLM_PROVIDER != "default" and LLM_MODEL == "default":
+    os.environ.pop("LLM_MODEL", None)  # a .env model may belong to the other provider
 warnings.filterwarnings("ignore", message="Qdrant client version")  # harmless client/server version notice
 
 import pandas as pd
@@ -44,7 +94,9 @@ from core.clients import COLLECTION_NAME, QDRANT_PATH, QDRANT_URL, get_qdrant_cl
 pd.set_option("display.max_colwidth", 120)
 print(f"LLM:        {llm.PROVIDER} / {llm.MODEL}")
 print(f"Embeddings: {emb.PROVIDER} / {emb.MODEL}")
-print(f"Qdrant:     {'embedded @ ' + QDRANT_PATH if QDRANT_PATH else 'server @ ' + QDRANT_URL}")'''
+print(f"Qdrant:     {'embedded @ ' + QDRANT_PATH if QDRANT_PATH else 'server @ ' + QDRANT_URL}")
+if llm.MODEL.startswith("gemini") != (llm.PROVIDER == "gemini"):
+    print(f"  ! model {llm.MODEL!r} doesn't look like a model for {llm.PROVIDER}: check LLM_MODEL above")'''
 
 QDRANT_CHECK = '''# Is the vector database running?
 try:
@@ -67,12 +119,50 @@ for name, count in prepare_data().items():
 
 SETUP_NOTE = '''
 ### Setup
-The next cell connects the notebook to the project. Read its first lines: `USE_EMBEDDED_QDRANT` picks where the database runs (Docker server, or embedded with no Docker). It prints which LLM, embedding model and database this run uses, all taken from your `.env`.
+The next cell connects the notebook to the project (in Google Colab it first clones the repo and installs the packages). Its first lines are settings: `USE_EMBEDDED_QDRANT` picks where the database runs (Docker server, or embedded with no Docker; always embedded in Colab), and the provider and model dropdowns override your `.env`. It prints which LLM, embedding model and database this run uses.
 '''
 
 
+_MERMAID_BLOCK = re.compile(r"```mermaid\n(.*?)```", re.S)
+DIAGRAMS = Path(__file__).resolve().parent.parent / "notebooks" / "diagrams"
+_used_diagrams: set[str] = set()
+
+
+def _diagram_png(source: str) -> tuple[str, bytes]:
+    """PNG for a Mermaid diagram, cached in notebooks/diagrams/ by content hash.
+
+    Only a new or changed diagram needs rendering, which takes mermaid-cli: set MMDC to its
+    command, e.g. MMDC="mmdc -p puppeteer.json" (puppeteer.json points at a local Chrome).
+    """
+    name = hashlib.sha1(source.encode()).hexdigest()[:12] + ".png"
+    path = DIAGRAMS / name
+    _used_diagrams.add(name)
+    if not path.exists():
+        if not os.environ.get("MMDC"):
+            sys.exit(f"Diagram {name} is new or changed; set MMDC to a mermaid-cli command to render it.")
+        DIAGRAMS.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            src = Path(tmp) / "diagram.mmd"
+            src.write_text(source)
+            subprocess.run([*shlex.split(os.environ["MMDC"]), "-i", str(src), "-o", str(path),
+                            "-b", "white", "-s", "2", "-q"], check=True)
+    return name, path.read_bytes()
+
+
 def md(text):
-    return nbf.v4.new_markdown_cell(text.strip())
+    # Diagrams are embedded as PNG attachments, not Mermaid: Colab and GitHub don't render
+    # Mermaid in Markdown, and an attachment shows everywhere with no internet connection.
+    attachments = {}
+
+    def to_image(match: re.Match) -> str:
+        name, png = _diagram_png(match.group(1))
+        attachments[name] = {"image/png": base64.b64encode(png).decode()}
+        return f"![diagram](attachment:{name})"
+
+    cell = nbf.v4.new_markdown_cell(_MERMAID_BLOCK.sub(to_image, text.strip()))
+    if attachments:
+        cell["attachments"] = attachments
+    return cell
 
 
 def code(text):
@@ -1223,3 +1313,9 @@ print([s.query for s in run.steps])
 print(run.result.answer)
 '''),
 ])
+
+
+# Remove cached diagram images that no notebook uses any more.
+for stale in DIAGRAMS.glob("*.png"):
+    if stale.name not in _used_diagrams:
+        stale.unlink()

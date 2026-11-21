@@ -11,8 +11,43 @@ Ask questions about a company's annual report (SEC Form 10-K) and get answers th
 
 This README is the single reference for setup, configuration, commands and code layout.
 
+## Run it in Google Colab (no install)
+
+The quickest way to try it: the notebooks run in your browser, with nothing to install and no Docker.
+
+1. **Get a key:** an [OpenAI key](https://platform.openai.com/api-keys) (the default), or a free
+   [Gemini key](https://aistudio.google.com/apikey) (Get API key → Create API key).
+2. **Open a notebook** with its button below (start with 00, go in order).
+3. **Add your key to Colab** once: click the **key icon** (Secrets) in the left sidebar →
+   **Add new secret** → name `OPENAI_API_KEY` (or `GEMINI_API_KEY`), paste the key, switch on
+   **Notebook access**. *Using Gemini?* Also set the **LLM_PROVIDER** and **EMBEDDING_PROVIDER**
+   dropdowns in the first cell to `gemini`.
+4. **Runtime → Run all** (click **Run anyway** if Colab warns the notebook isn't from Google).
+
+| Notebook | Open | What it covers | Database |
+|---|---|---|---|
+| 00_start_here | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/iam-suraj-kumar/fintech-rag/blob/develop/notebooks/00_start_here.ipynb) | what RAG is, and each building block on toy examples | no database |
+| 01_ingest | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/iam-suraj-kumar/fintech-rag/blob/develop/notebooks/01_ingest.ipynb) | Phase 1: fetch the 10-K, chunk it two ways, embed, index into Qdrant | builds the data |
+| 02_answer | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/iam-suraj-kumar/fintech-rag/blob/develop/notebooks/02_answer.ipynb) | Phase 2: hybrid search, the grounded prompt, citations, "not found" | builds it if missing |
+| 03_models_and_experiments | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/iam-suraj-kumar/fintech-rag/blob/develop/notebooks/03_models_and_experiments.ipynb) | OpenAI vs Gemini, chunkers, the five retrieval strategies, a mini evaluation | builds it if missing |
+| 04_agentic_rag | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/iam-suraj-kumar/fintech-rag/blob/develop/notebooks/04_agentic_rag.ipynb) | classic vs agentic RAG, with a live trace | builds it if missing |
+
+**What to expect**
+- The first cell sets everything up by itself: it clones this repo, installs `requirements-colab.txt`
+  (the pinned packages minus `torch`, which Colab already has), reads your key, and switches to the
+  embedded Qdrant database (no Docker). The first run takes a few minutes.
+- Each Colab notebook is a separate machine, so 01–04 build the database themselves the first time
+  (fetch the 10-K, chunk it, embed it: a few minutes, the first docling run longest). That costs a few
+  cents of embedding calls with OpenAI per notebook.
+- If Colab asks to **restart the session**, or a later cell fails to import: **Runtime → Restart session**,
+  then **Run all** again. Re-running the first cell also pulls the latest code.
+
+To run everything on your own machine instead (the app, the CLI, Docker or embedded Qdrant), follow the
+[Quickstart](#quickstart).
+
 ## Contents
 
+1. [Run it in Google Colab](#run-it-in-google-colab-no-install)
 1. [Quickstart](#quickstart)
 2. [The app](#the-app)
 3. [The notebooks](#the-notebooks)
@@ -164,8 +199,10 @@ jupyter lab notebooks/           # run cells with Shift + Enter
 How they behave:
 
 - **Every notebook runs on its own, in any order.** In 02–04 the second cell calls `prepare_data()`, which builds whatever is missing; 01 builds the data step by step; 00 needs no database. Each section of notebook 03 (A–D) also runs alone after the two setup cells.
-- **Diagrams** are Mermaid blocks, drawn by JupyterLab 4.1+ (installed by the dev extra).
-- **Database:** cell 1 has `USE_EMBEDDED_QDRANT = False`. Set it to `True` to use `data/qdrant_local/` without Docker, then **Kernel → Restart**. Setting `QDRANT_PATH` in `.env` works too.
+- **Diagrams** are images embedded in the notebooks (rendered once from Mermaid and cached in `notebooks/diagrams/`), so they show in JupyterLab, VS Code, Colab and on GitHub.
+- **Settings** in each notebook's first cell (`USE_EMBEDDED_QDRANT`, `LLM_PROVIDER`, `EMBEDDING_PROVIDER`, `LLM_MODEL`) override `.env`; in Colab they show as a checkbox and dropdowns.
+- **In Colab:** open them from [the buttons above](#run-it-in-google-colab-no-install).
+- **Database:** cell 1 has `USE_EMBEDDED_QDRANT = False` (always on in Colab). Set it to `True` to use `data/qdrant_local/` without Docker, then **Kernel → Restart**. Setting `QDRANT_PATH` in `.env` works too.
 - **Slow steps are opt-in:** in notebook 01, `RECHUNK = True` re-runs docling and `REINDEX = True` re-embeds everything.
 - **Gemini column in 03A** is skipped when `.env` has no `GEMINI_API_KEY`.
 - **Cost** of running all five: roughly 20¢ with OpenAI (most of it in 03 and 04).
@@ -353,9 +390,11 @@ ui/                           Streamlit app (see "The app")
 eval/                         evaluation harness (see "Evaluation")
   golden_dataset.py, retrieval_metrics.py, judge.py, run_eval.py
 notebooks/                    00_start_here, 01_ingest, 02_answer, 03_models_and_experiments, 04_agentic_rag
+  diagrams/                   the notebooks' diagram images (generated, cached)
 scripts/
   smoke_test.py               quick end-to-end check
   make_notebooks.py           generates notebooks/
+  make_colab_requirements.py  writes requirements-colab.txt from requirements.txt
 tests/                        pytest suite (see "Tests")
 docs/                         talk materials: FinTech_RAG_talk.pptx (slides with click animations),
                               FinTech_RAG_onepager.pdf (student handout)
